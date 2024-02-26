@@ -1,0 +1,68 @@
+version: "2.1"
+
+services:
+  nextcloud:
+    image: nextcloud:28.0.2-apache
+    container_name: nextcloud
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Novosibirsk
+      - REDIS_HOST=redis-nextcloud
+      - REDIS_HOST_PASSWORD=<YOUR-REDIS-PASS>
+    volumes:
+      - ./nextcloud/apps:/var/www/html/apps
+      - ./nextcloud/custom_apps:/var/www/html/custom_apps
+      - ./nextcloud/config:/var/www/html/config
+      - ./nextcloud/data:/var/www/html/data
+      - ./nextcloud.ini:/usr/local/etc/php/conf.d/nextcloud.ini
+    ports:
+      - '82:80'
+    restart: always
+    depends_on:
+      - postgres-nextcloud
+      - redis-nextcloud
+
+  postgres-nextcloud:
+    image: postgres:16.2-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextadmin
+      - POSTGRES_PASSWORD=<YOUR-PASS>
+    volumes:
+      - ./DB:/var/lib/postgresql/data
+  
+  documentserver:
+    image: onlyoffice/documentserver:8.0
+    container_name: documentserver
+    restart: always
+    environment:
+      - JWT_SECRET=<YOUR-SECRET>
+    ports:
+      - '8000:80'
+    volumes:
+      - ./onlyoffice/logs:/var/log/onlyoffice
+      - ./onlyoffice/data:/var/www/onlyoffice/Data
+      - ./onlyoffice/lib:/var/lib/onlyoffice
+      - ./onlyoffice/db:/var/lib/postgresql
+
+  redis-nextcloud:
+    image: redis:7.2.4-alpine
+    container_name: redis-nextcloud
+    command: redis-server --requirepass <YOUR-REDIS-PASS>
+    restart: always
+
+  certmanager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: certmanager
+    restart: always
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - ./certmanager/data:/data
+      - ./certmanager/letsencrypt:/etc/letsencrypt
+
